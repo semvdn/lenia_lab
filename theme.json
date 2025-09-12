@@ -1,0 +1,13 @@
+{
+    "defaults": {
+        "font": {
+            "name": "fira_code",
+            "size": "14"
+        }
+    },
+    "UILabel": {
+        "misc": {
+            "text_horiz_alignment": "left"
+        }
+    }
+}
