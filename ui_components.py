@@ -154,12 +154,13 @@ def _build_analysis_tab(app, parent):
     app.stats_record_button = ttk.Button(stats_frame, text="Record Organism Stats", command=app.record_organism_stats)
     app.stats_record_button.pack(fill=tk.X, pady=(5,0))
 
-    preset_frame = ttk.LabelFrame(parent, text="Organism Presets"); preset_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+    preset_frame = ttk.LabelFrame(parent, text="Presets & Saved Items"); preset_frame.pack(fill=tk.BOTH, expand=True, pady=5)
     preset_list_frame = ttk.Frame(preset_frame); preset_list_frame.pack(fill=tk.BOTH, expand=True)
     app.preset_listbox = tk.Listbox(preset_list_frame); app.preset_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
     app.preset_listbox.bind("<<ListboxSelect>>", app._update_preset_preview)
     preset_scroll = ttk.Scrollbar(preset_list_frame, orient="vertical", command=app.preset_listbox.yview)
     preset_scroll.pack(side=tk.RIGHT, fill=tk.Y); app.preset_listbox.config(yscrollcommand=preset_scroll.set)
+    ttk.Label(preset_frame, text="[Preset] built-in  |  [Saved Organism] your captures  |  [Saved Settings] full configs", wraplength=UI_PANEL_WIDTH-40, justify="left").pack(fill=tk.X, padx=5, pady=(2,0))
     
     preview_frame = ttk.LabelFrame(preset_frame, text="Preview"); preview_frame.pack(fill=tk.X, pady=(5,0))
     app.preset_preview_label = ttk.Label(preview_frame); app.preset_preview_label.pack(pady=5, padx=5)

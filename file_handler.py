@@ -4,48 +4,90 @@ import torch
 from tkinter import filedialog, simpledialog, messagebox
 from PIL import Image, ImageTk
 
-from config import SETTINGS_FOLDER, PRESETS_FOLDER, device, GRID_DIM
+from config import SETTINGS_FOLDER, PRESETS_FOLDER, SAVED_ORGANISMS_FOLDER, device, GRID_DIM
 from simulation import SimulationState, Channel, local_param_maps, LOCAL_PARAM_NAMES
 from canvas_manager import _get_multichannel_array
 
-def save_settings(app):
-    fp = filedialog.asksaveasfilename(defaultextension=".json", initialdir=SETTINGS_FOLDER, filetypes=[("JSON", "*.json")])
-    if not fp: return
-    with open(fp, 'w') as f:
-        json.dump({'channels': [c.__dict__ for c in app.sim_state.channels], 'interaction_matrix': app.sim_state.interaction_matrix}, f, indent=4)
+ENTRY_TYPE_LABELS = {
+    'preset': 'Preset',
+    'saved_organism': 'Saved Organism',
+    'saved_settings': 'Saved Settings'
+}
+ENTRY_SORT_ORDER = {'preset': 0, 'saved_organism': 1, 'saved_settings': 2}
 
-def load_settings(app):
-    fp = filedialog.askopenfilename(initialdir=SETTINGS_FOLDER, filetypes=[("JSON", "*.json")])
-    if not fp: return
-    with open(fp, 'r') as f:
-        settings = json.load(f)
-    
+def _display_name(entry_type, name):
+    label = ENTRY_TYPE_LABELS.get(entry_type, "Preset")
+    return f"[{label}] {name}"
+
+def _load_json_files(folder, entry_type, skip_dirs=True):
+    entries = {}
+    if not os.path.isdir(folder):
+        return entries
+    for fn in os.listdir(folder):
+        path = os.path.join(folder, fn)
+        if skip_dirs and os.path.isdir(path):
+            continue
+        if not fn.endswith(".json"):
+            continue
+        try:
+            with open(path, 'r') as f:
+                data = json.load(f)
+            base = fn[:-5]
+            display = _display_name(entry_type, base)
+            entries[display] = {'name': base, 'type': entry_type, 'data': data, 'path': path}
+        except Exception as e:
+            print(f"Error loading {entry_type} {fn}: {e}")
+    return entries
+
+def _refresh_presets(app):
+    app.organism_presets = load_presets(app)
+    update_preset_listbox(app)
+
+def _apply_settings_data(app, settings):
     new_state = SimulationState()
     new_state.interaction_matrix = settings.get('interaction_matrix', [[1.0]])
     new_state.channels = [Channel(**d) for d in settings.get('channels', [])]
     app.sim_state = new_state
-    
+
     app.game_board = app._initialize_board_circle_seed()
     app._initialize_all_local_param_maps()
     app.draw_channel_index = 0
     app._build_ui()
 
-def load_presets(app):
+def _load_settings_from_path(app, fp):
+    with open(fp, 'r') as f:
+        settings = json.load(f)
+    _apply_settings_data(app, settings)
+    return settings
+
+def save_settings(app):
+    name = simpledialog.askstring("Save Settings", "Enter settings name:", parent=app.root)
+    if not name or not name.strip():
+        return
+    safe_name = name.strip()
+    fp = os.path.join(SETTINGS_FOLDER, f"{safe_name}.json")
+    with open(fp, 'w') as f:
+        json.dump({'channels': [c.__dict__ for c in app.sim_state.channels], 'interaction_matrix': app.sim_state.interaction_matrix}, f, indent=4)
+    _refresh_presets(app)
+
+def load_settings(app):
+    fp = filedialog.askopenfilename(initialdir=SETTINGS_FOLDER, filetypes=[("JSON", "*.json")])
+    if not fp:
+        return
+    _load_settings_from_path(app, fp)
+
+def load_presets(app=None):
     presets = {}
-    if not os.path.isdir(PRESETS_FOLDER): return presets
-    for fn in os.listdir(PRESETS_FOLDER):
-        if fn.endswith(".json"):
-            try:
-                with open(os.path.join(PRESETS_FOLDER, fn), 'r') as f:
-                    presets[fn.replace(".json", "")] = json.load(f)
-            except Exception as e:
-                print(f"Error loading preset {fn}: {e}")
+    presets.update(_load_json_files(PRESETS_FOLDER, 'preset'))
+    presets.update(_load_json_files(SAVED_ORGANISMS_FOLDER, 'saved_organism'))
+    presets.update(_load_json_files(SETTINGS_FOLDER, 'saved_settings'))
     return presets
 
 def update_preset_listbox(app):
     app.preset_listbox.delete(0, 'end')
-    for name in sorted(app.organism_presets.keys()):
-        app.preset_listbox.insert('end', name)
+    sorted_items = sorted(app.organism_presets.items(), key=lambda item: (ENTRY_SORT_ORDER.get(item[1]['type'], 99), item[1]['name'].lower()))
+    for display, _ in sorted_items:
+        app.preset_listbox.insert('end', display)
     update_preset_preview(app)
 
 def save_preset(app):
@@ -57,7 +99,8 @@ def save_preset(app):
         _save_preset_logic(app, name)
 
 def _save_preset_logic(app, name):
-    if not app.selected_organism_id or app.selected_organism_id not in app.persistent_tracked_organisms: return
+    if not app.selected_organism_id or app.selected_organism_id not in app.persistent_tracked_organisms:
+        return
     org_data = app.persistent_tracked_organisms[app.selected_organism_id]
     bbox = org_data.get('bbox')
     if not bbox:
@@ -66,7 +109,7 @@ def _save_preset_logic(app, name):
 
     min_r, min_c, max_r, max_c = bbox
     tensor_slice = app.game_board[:, min_r:max_r, min_c:max_c]
-    
+
     local_maps_data = {}
     for ch in app.sim_state.channels:
         if ch.has_local_params and ch.id in local_param_maps:
@@ -82,26 +125,36 @@ def _save_preset_logic(app, name):
         'params': {'channels': [c.__dict__ for c in app.sim_state.channels], 'interaction_matrix': app.sim_state.interaction_matrix},
         'local_param_maps': local_maps_data
     }
-    
-    with open(os.path.join(PRESETS_FOLDER, f"{name}.json"), 'w') as f:
+
+    with open(os.path.join(SAVED_ORGANISMS_FOLDER, f"{name}.json"), 'w') as f:
         json.dump(preset_data, f, indent=2)
-    app.organism_presets[name] = preset_data
-    update_preset_listbox(app)
+    _refresh_presets(app)
 
 def load_preset(app):
     sel = app.preset_listbox.curselection()
-    if not sel: return
-    preset = app.organism_presets[app.preset_listbox.get(sel[0])]
+    if not sel:
+        return
+    display_name = app.preset_listbox.get(sel[0])
+    entry = app.organism_presets.get(display_name)
+    if not entry:
+        return
+
+    if entry['type'] == 'saved_settings':
+        _apply_settings_data(app, entry['data'])
+        app.update_canvas()
+        return
+
+    preset = entry['data']
     p_data = preset['params']
-    
+
     new_state = SimulationState()
     new_state.interaction_matrix = p_data['interaction_matrix']
     new_state.channels = [Channel(**d) for d in p_data['channels']]
     app.sim_state = new_state
-    
+
     app.game_board = app._clear_board()
     app._initialize_all_local_param_maps()
-    
+
     tensor_data = torch.tensor(preset['tensor'], device=device)
     h, w = tensor_data.shape[1], tensor_data.shape[2]
     ch, cw = GRID_DIM[0] // 2, GRID_DIM[1] // 2
@@ -122,33 +175,58 @@ def load_preset(app):
 
 def delete_preset(app):
     sel = app.preset_listbox.curselection()
-    if not sel: return
-    name = app.preset_listbox.get(sel[0])
-    if name in app.organism_presets and messagebox.askyesno("Confirm Delete", f"Delete preset '{name}'?"):
-        del app.organism_presets[name]
-        os.remove(os.path.join(PRESETS_FOLDER, f"{name}.json"))
-        update_preset_listbox(app)
+    if not sel:
+        return
+    display_name = app.preset_listbox.get(sel[0])
+    entry = app.organism_presets.get(display_name)
+    if not entry:
+        return
+    if entry['type'] == 'preset':
+        messagebox.showinfo("Delete Not Allowed", "Built-in presets cannot be deleted.")
+        return
+    if messagebox.askyesno("Confirm Delete", f"Delete '{display_name}'?"):
+        os.remove(entry['path'])
+        _refresh_presets(app)
 
 def rename_preset(app):
     sel = app.preset_listbox.curselection()
-    if not sel: return
-    old_name = app.preset_listbox.get(sel[0])
-    new_name = simpledialog.askstring("Rename Preset", "Enter new name:", initialvalue=old_name, parent=app.root)
-    if not new_name or not new_name.strip() or new_name == old_name: return
-    if new_name in app.organism_presets:
-        messagebox.showerror("Rename Error", "A preset with that name already exists.")
+    if not sel:
         return
-    app.organism_presets[new_name] = app.organism_presets.pop(old_name)
-    os.rename(os.path.join(PRESETS_FOLDER, f"{old_name}.json"), os.path.join(PRESETS_FOLDER, f"{new_name}.json"))
-    update_preset_listbox(app)
+    display_name = app.preset_listbox.get(sel[0])
+    entry = app.organism_presets.get(display_name)
+    if not entry:
+        return
+    if entry['type'] == 'preset':
+        messagebox.showinfo("Rename Not Allowed", "Built-in presets cannot be renamed.")
+        return
+    new_name = simpledialog.askstring("Rename Preset", "Enter new name:", initialvalue=entry['name'], parent=app.root)
+    if not new_name or not new_name.strip():
+        return
+    safe_name = new_name.strip()
+    target_path = os.path.join(os.path.dirname(entry['path']), f"{safe_name}.json")
+    if os.path.exists(target_path):
+        messagebox.showerror("Rename Error", "A file with that name already exists.")
+        return
+    os.rename(entry['path'], target_path)
+    _refresh_presets(app)
 
 def update_preset_preview(app, event=None):
     sel = app.preset_listbox.curselection()
     if not sel:
-        app.preset_preview_label.config(image='')
+        app.preset_preview_label.config(image='', text='')
+        app.preset_preview_photo = None
         return
-    name = app.preset_listbox.get(sel[0])
-    preset = app.organism_presets[name]
+    display_name = app.preset_listbox.get(sel[0])
+    entry = app.organism_presets.get(display_name)
+    app.preset_preview_label.config(image='', text='')
+    app.preset_preview_photo = None
+    if not entry:
+        return
+    if entry['type'] == 'saved_settings':
+        num_channels = len(entry['data'].get('channels', []))
+        app.preset_preview_label.config(text=f"Saved Settings\nChannels: {num_channels}")
+        return
+    preset = entry['data']
     channels = [Channel(**c) for c in preset['params']['channels']]
     arr = _get_multichannel_array(torch.tensor(preset['tensor'], device=device), channels)
     if arr is not None:

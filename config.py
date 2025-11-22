@@ -9,7 +9,9 @@ KERNEL_SIZE = 31
 
 SETTINGS_FOLDER = "saved_settings"
 GIFS_FOLDER = "gifs"
-PRESETS_FOLDER = os.path.join(SETTINGS_FOLDER, "presets")
+# Built-in presets live in the top-level presets folder; user saves are placed under saved_settings.
+PRESETS_FOLDER = "presets"
+SAVED_ORGANISMS_FOLDER = os.path.join(SETTINGS_FOLDER, "organisms")
 
 # --- Device Configuration ---
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

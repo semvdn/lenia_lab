@@ -22,6 +22,7 @@ class LeniaApp:
         self._ensure_dir(SETTINGS_FOLDER)
         self._ensure_dir(GIFS_FOLDER)
         self._ensure_dir(PRESETS_FOLDER)
+        self._ensure_dir(SAVED_ORGANISMS_FOLDER)
         
         # --- Application and Simulation State ---
         self.sim_state = SimulationState()
