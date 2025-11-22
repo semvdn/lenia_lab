@@ -86,6 +86,7 @@ class LeniaApp:
         self.main_frame = ttk.Frame(self.root)
         self.main_frame.pack(fill=tk.BOTH, expand=True)
         self.canvas = tk.Canvas(self.main_frame, width=GRID_SIZE, height=GRID_SIZE, bg='black')
+        self.canvas_image_id = None  # track the single canvas image to avoid leaking items
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.ui_frame = ttk.Frame(self.main_frame, width=UI_PANEL_WIDTH)
         self.ui_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=5, pady=5)
@@ -247,41 +248,30 @@ class LeniaApp:
             self._set_widget_state(child, state, exceptions)
             
     def _set_channel_ui_state(self, ch, widgets):
-        is_local = ch.has_local_params
-        is_responsive = ch.flow_responsive_params
-        widgets['flow_responsive_check'].config(state='normal' if is_local else 'disabled')
-        for slider_frame in widgets['sliders'].values():
-            self._set_widget_state(slider_frame, 'disabled' if is_responsive else 'normal')
-        if is_local and is_responsive:
-            widgets['flow_responsive_frame'].pack(fill=tk.X, padx=5, pady=5)
-        else:
-            widgets['flow_responsive_frame'].pack_forget()
+        for slider_frame in widgets.get('sliders', {}).values():
+            self._set_widget_state(slider_frame, 'normal')
 
     def _update_local_param_draw_ui(self):
-        if not (0 <= self.draw_channel_index < len(self.sim_state.channels)):
-            self.param_draw_frame.pack_forget()
-            return
-        ch = self.sim_state.channels[self.draw_channel_index]
-        if ch.has_local_params and not ch.flow_responsive_params:
-            self.param_draw_frame.pack(fill=tk.X, pady=2)
-            self._on_param_draw_target_selected()
-        else:
-            self.param_draw_frame.pack_forget()
-            self.param_draw_target.set("Mass")
+        # Local parameter drawing is disabled; keep controls hidden.
+        self.param_draw_frame.pack_forget()
+        self.param_draw_target.set("Mass")
 
     def _update_draw_channel_selector(self):
         num_ch = len(self.sim_state.channels)
-        self.draw_channel_dd['values'] = list(range(1, num_ch + 1)) if num_ch > 0 else []
-        if self.draw_channel_index >= num_ch:
-            self.draw_channel_index = max(0, num_ch - 1)
-        self.draw_channel_var.set(str(self.draw_channel_index + 1) if num_ch > 0 else "")
+        values = ["All"] + [str(i + 1) for i in range(num_ch)] if num_ch > 0 else []
+        self.draw_channel_dd['values'] = values
+        if num_ch == 0:
+            self.draw_channel_index = -1
+            self.draw_channel_var.set("")
+            return
+        if self.draw_channel_index >= num_ch or self.draw_channel_index < -1:
+            self.draw_channel_index = -1
+        self.draw_channel_var.set("All" if self.draw_channel_index == -1 else str(self.draw_channel_index + 1))
 
     def _update_vis_options(self):
         options = ["Final Board"]
         for i, ch in enumerate(self.sim_state.channels):
             options.extend([f"Ch {i+1}: Potential Field", f"Ch {i+1}: Growth Field", f"Ch {i+1}: Flow Field"])
-            if ch.has_local_params:
-                options.extend([f"Ch {i+1}: {name}" for name in LOCAL_PARAM_NAMES])
         for widget in [self.vis_dd, *self.split_view_controls]:
             widget['values'] = options
         if self.view_mode_var.get() not in options: self.view_mode_var.set("Final Board")

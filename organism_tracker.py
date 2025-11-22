@@ -195,7 +195,7 @@ def update_analysis_display(app):
         vel = np.sqrt(vx**2 + vy**2)
         direction = np.degrees(np.arctan2(-vy, vx))
         app.stats_vel_label.config(text=f"Velocity: {vel:.2f} px/frame")
-        app.stats_dir_label.config(text=f"Direction: {direction:.1f}°")
+        app.stats_dir_label.config(text=f"Direction: {direction:.1f} deg")
     else:
         # Clear the display if no organism is selected
         app.stats_mass_label.config(text="Mass (per ch): N/A"); app.stats_vel_label.config(text="Velocity: N/A"); app.stats_dir_label.config(text="Direction: N/A")

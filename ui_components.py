@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-from simulation import kernel_functions, growth_functions, LOCAL_PARAM_NAMES
+from simulation import kernel_functions, growth_functions
 from config import UI_PANEL_WIDTH, KERNEL_SIZE
 
 def _destroy_children(widget):
@@ -30,7 +30,7 @@ def _build_channels_tab(app, parent):
     channel_container.pack(fill=tk.BOTH, expand=True, side=tk.TOP)
     
     ttk.Button(top_frame, text="Add New Channel", command=app.add_channel).pack(fill=tk.X)
-    app.interactions_frame = ttk.LabelFrame(interactions_container, text="Channel Interactions (J → I)")
+    app.interactions_frame = ttk.LabelFrame(interactions_container, text="Channel Interactions (J -> I)")
     app.interactions_frame.pack(fill=tk.X)
     _rebuild_interactions_ui(app)
 
@@ -68,7 +68,7 @@ def _build_channels_tab(app, parent):
     app.param_draw_frame = ttk.Frame(draw_controls_frame)
     app.param_draw_frame.pack(fill=tk.X, pady=2)
     ttk.Label(app.param_draw_frame, text="Draw Target:").pack(side=tk.LEFT, padx=5)
-    app.param_draw_dd = ttk.Combobox(app.param_draw_frame, textvariable=app.param_draw_target, state="readonly", width=12, values=["Mass"] + LOCAL_PARAM_NAMES)
+    app.param_draw_dd = ttk.Combobox(app.param_draw_frame, textvariable=app.param_draw_target, state="readonly", width=12, values=["Mass"])
     app.param_draw_dd.bind("<<ComboboxSelected>>", app._on_param_draw_target_selected)
     app.param_draw_dd.pack(side=tk.LEFT)
     app.param_draw_val_label = ttk.Label(app.param_draw_frame, text="Val: 0.50", width=8)
@@ -180,7 +180,7 @@ def _rebuild_interactions_ui(app):
         app.interactions_frame.grid_columnconfigure(i, weight=1)
         for j in range(num_ch):
             frame = ttk.Frame(app.interactions_frame); frame.grid(row=i, column=j, padx=2, pady=2, sticky="ew")
-            label = ttk.Label(frame, text=f'{j+1}→{i+1}')
+            label = ttk.Label(frame, text=f'{j+1}->{i+1}')
             label.pack()
             scale = ttk.Scale(frame, from_=0.0, to=1.5, orient=tk.HORIZONTAL, value=app.sim_state.interaction_matrix[i][j], command=lambda val,i=i,j=j: app._update_interaction(i,j,val))
             scale.pack(fill=tk.X, expand=True)
@@ -210,22 +210,14 @@ def _build_single_channel_ui(app, parent_frame, ch):
 
     sim_mode_frame = ttk.Frame(parent_frame); sim_mode_frame.pack(fill=tk.X, padx=5, pady=2)
     flow_active_var = tk.BooleanVar(value=ch.use_flow)
-    local_params_var = tk.BooleanVar(value=ch.has_local_params)
-    flow_responsive_var = tk.BooleanVar(value=ch.flow_responsive_params)
     widgets['flow_check'] = ttk.Checkbutton(sim_mode_frame, text="Use Flow", variable=flow_active_var, command=lambda id=ch.id, v=flow_active_var: app._update_channel_attr(id, 'use_flow', v.get()))
     widgets['flow_check'].pack(side=tk.LEFT)
-    widgets['local_params_check'] = ttk.Checkbutton(sim_mode_frame, text="Enable Local Params", variable=local_params_var, command=lambda id=ch.id, v=local_params_var, w=widgets: app._toggle_local_params(id, v.get(), w))
-    widgets['local_params_check'].pack(side=tk.LEFT, padx=(10,0))
-    widgets['flow_responsive_check'] = ttk.Checkbutton(sim_mode_frame, text="Flow-Responsive", variable=flow_responsive_var, command=lambda id=ch.id, v=flow_responsive_var, w=widgets: app._toggle_flow_responsive_params(id, v.get(), w))
-    widgets['flow_responsive_check'].pack(side=tk.LEFT, padx=(10,0))
     
     widgets['sliders'] = {}
     param_list = [("Mu", 'mu', 0.0, 1.0), ("Sigma", 'sigma', 0.001, 0.2), ("DT", 'dt', 0.01, 0.2), ("Flow", 'flow_strength', 0.0, 20.0)]
     for label, attr, min_val, max_val in param_list:
         widgets['sliders'][attr] = _create_slider(app, parent_frame, label, ch.id, attr, min_val, max_val)
 
-    widgets['flow_responsive_frame'] = _build_flow_responsive_ui(app, parent_frame, ch)
-    
     growth_frame = ttk.Frame(parent_frame); growth_frame.pack(fill=tk.X, padx=5, pady=2); ttk.Label(growth_frame, text="Growth Func:", width=10).pack(side=tk.LEFT)
     growth_dd = ttk.Combobox(growth_frame, values=list(growth_functions.keys()), state="readonly"); growth_dd.set(ch.growth_func_name)
     growth_dd.bind("<<ComboboxSelected>>", lambda e, id=ch.id: app._update_channel_attr(id, 'growth_func_name', e.widget.get())); growth_dd.pack(side=tk.LEFT, fill=tk.X, expand=True)
@@ -286,8 +278,8 @@ def _build_kernel_layer_ui(app, parent, ch_id, layer, k_idx, total_layers):
     type_dd = ttk.Combobox(controls_frame, values=list(kernel_functions.keys()), state="readonly"); type_dd.set(layer['type'])
     type_dd.bind("<<ComboboxSelected>>", lambda e,l_id=layer['id']: app._update_layer_attr(l_id,'type',e.widget.get())); type_dd.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
     btn_frame = ttk.Frame(controls_frame); btn_frame.pack(side=tk.LEFT)
-    up_btn = ttk.Button(btn_frame, text="▲", width=3, command=lambda l_id=layer['id']: app.move_layer(l_id, -1)); up_btn.pack(side=tk.LEFT); up_btn['state'] = 'disabled' if k_idx==0 else 'normal'
-    down_btn = ttk.Button(btn_frame, text="▼", width=3, command=lambda l_id=layer['id']: app.move_layer(l_id, 1)); down_btn.pack(side=tk.LEFT); down_btn['state'] = 'disabled' if k_idx==total_layers-1 else 'normal'
+    up_btn = ttk.Button(btn_frame, text="Up", width=3, command=lambda l_id=layer['id']: app.move_layer(l_id, -1)); up_btn.pack(side=tk.LEFT); up_btn['state'] = 'disabled' if k_idx==0 else 'normal'
+    down_btn = ttk.Button(btn_frame, text="Dn", width=3, command=lambda l_id=layer['id']: app.move_layer(l_id, 1)); down_btn.pack(side=tk.LEFT); down_btn['state'] = 'disabled' if k_idx==total_layers-1 else 'normal'
     ttk.Button(btn_frame, text="Del", width=4, command=lambda l_id=layer['id']: app.remove_layer(l_id)).pack(side=tk.LEFT)
     _create_slider(app, layer_frame, "Radius", layer['id'], 'radius', 1, KERNEL_SIZE//2, is_layer=True, is_int=True)
     _create_slider(app, layer_frame, "Weight", layer['id'], 'weight', -2.0, 2.0, is_layer=True)

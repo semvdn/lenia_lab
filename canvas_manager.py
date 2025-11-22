@@ -65,7 +65,10 @@ def update_canvas(app):
         img = img.resize((app.canvas.winfo_width(), app.canvas.winfo_height()), Image.NEAREST)
     
     app.photo = ImageTk.PhotoImage(image=img)
-    app.canvas.create_image(0, 0, image=app.photo, anchor="nw")
+    if app.canvas_image_id is None:
+        app.canvas_image_id = app.canvas.create_image(0, 0, image=app.photo, anchor="nw")
+    else:
+        app.canvas.itemconfig(app.canvas_image_id, image=app.photo)
 
 def _get_view_array_by_name(app, view_name):
     channels = app.sim_state.channels
@@ -135,7 +138,9 @@ def update_kernel_preview(app, id):
     app.kernel_previews[id].image = photo
 
 def draw_on_canvas(app, event, right_click=False):
-    if not (0 <= app.draw_channel_index < len(app.sim_state.channels)): return
+    num_channels = len(app.sim_state.channels)
+    if num_channels == 0:
+        return
     
     cw, ch = app.canvas.winfo_width(), app.canvas.winfo_height()
     if cw <= 1 or ch <= 1: return
@@ -158,14 +163,17 @@ def draw_on_canvas(app, event, right_click=False):
     mask = torch.sqrt((yy - gy)**2 + (xx - gx)**2) <= r
     
     target = app.param_draw_target.get()
-    ch = app.sim_state.channels[app.draw_channel_index]
-
+    targets = range(num_channels) if app.draw_channel_index == -1 else [app.draw_channel_index]
     if target == "Mass":
         val = 0.0 if right_click else 1.0
-        app.game_board[app.draw_channel_index, ys:ye, xs:xe][mask] = val
-    elif ch.has_local_params and ch.id in local_param_maps and target in local_param_maps[ch.id]:
-        val = app.param_draw_value.get()
-        local_param_maps[ch.id][target][ys:ye, xs:xe][mask] = val
+        for idx in targets:
+            app.game_board[idx, ys:ye, xs:xe][mask] = val
+    else:
+        for idx in targets:
+            ch = app.sim_state.channels[idx]
+            if ch.has_local_params and ch.id in local_param_maps and target in local_param_maps[ch.id]:
+                val = app.param_draw_value.get()
+                local_param_maps[ch.id][target][ys:ye, xs:xe][mask] = val
 
     update_canvas(app)
 

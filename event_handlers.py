@@ -15,7 +15,7 @@ def update_slider_val(app, label, item_id, attr, v_str, is_layer, is_int):
     else:
         update_channel_attr(app, item_id, attr, v)
         
-    if ch:
+    if ch and not is_layer:
         app._update_kernel_preview(ch.id)
 
 def update_channel_attr(app, id, attr, val):
@@ -27,6 +27,9 @@ def update_layer_attr(app, id, attr, val):
     """Updates an attribute for a given kernel layer."""
     if (layer := app._get_layer_by_id(id)):
         layer[attr] = val
+        if (ch := app._get_channel_by_any_id(id)):
+            app.update_kernel(ch.id)
+            app._update_kernel_preview(ch.id)
 
 def update_interaction(app, i, j, v_str):
     app.sim_state.interaction_matrix[i][j] = float(v_str)
@@ -35,7 +38,8 @@ def update_brush_size(app, v_str):
     app.draw_brush_size = int(float(v_str))
 
 def on_draw_channel_selected(app, event):
-    app.draw_channel_index = int(app.draw_channel_var.get()) - 1
+    val = app.draw_channel_var.get()
+    app.draw_channel_index = -1 if val == "All" else int(val) - 1
     app._update_local_param_draw_ui()
     app._update_vis_options()
 
@@ -47,6 +51,7 @@ def add_channel(app):
     app.sim_state.interaction_matrix.append([0.0] * (len(app.sim_state.channels) - 1) + [1.0])
     app.game_board = app._initialize_board_circle_seed()
     app._build_ui()
+    app.update_all_kernels()
 
 def delete_channel(app, id):
     if len(app.sim_state.channels) <= 1: return
@@ -60,6 +65,7 @@ def delete_channel(app, id):
         app.game_board = app._initialize_board_circle_seed()
         app.draw_channel_index = min(app.draw_channel_index, len(app.sim_state.channels) - 1)
         app._build_ui()
+        app.update_all_kernels()
 
 def duplicate_channel(app, id):
     src = app._get_channel_by_id(id)
@@ -74,22 +80,26 @@ def duplicate_channel(app, id):
     app.sim_state.interaction_matrix.insert(idx + 1, app.sim_state.interaction_matrix[idx][:])
     app.game_board = torch.cat((app.game_board[:idx + 1], app.game_board[idx].unsqueeze(0), app.game_board[idx + 1:]), dim=0)
     app._build_ui()
+    app.update_all_kernels()
 
 def add_kernel_layer(app, id):
     if (ch := app._get_channel_by_id(id)):
         ch.kernel_layers.append({'id': str(uuid.uuid4()), 'type': 'Gaussian Ring', 'radius': 5, 'weight': 1.0, 'op': '+', 'is_active': True})
         app._rebuild_channels_ui()
+        app.update_kernel(ch.id)
 
 def clear_kernel_layers(app, id):
     if (ch := app._get_channel_by_id(id)):
         ch.kernel_layers = [{'id': str(uuid.uuid4()), 'type': 'Gaussian Ring', 'radius': 13, 'weight': 1.0, 'op': '+', 'is_active': True}]
         app._rebuild_channels_ui()
+        app.update_kernel(ch.id)
 
 def remove_layer(app, id):
     ch = app._get_channel_by_any_id(id)
     if ch and len(ch.kernel_layers) > 1:
         ch.kernel_layers = [l for l in ch.kernel_layers if l['id'] != id]
         app._rebuild_channels_ui()
+        app.update_kernel(ch.id)
 
 def move_layer(app, id, d):
     ch = app._get_channel_by_any_id(id)
@@ -100,6 +110,7 @@ def move_layer(app, id, d):
             if 0 <= n_idx < len(ch.kernel_layers):
                 ch.kernel_layers.insert(n_idx, ch.kernel_layers.pop(idx))
                 app._rebuild_channels_ui()
+                app.update_kernel(ch.id)
 
 def reset_seed(app):
     app.game_board = app._initialize_board_circle_seed()
@@ -181,6 +192,8 @@ def toggle_layer_active(app, layer_id, var):
     if layer:
         layer['is_active'] = var.get()
         app._rebuild_channels_ui()
+        if (ch := app._get_channel_by_any_id(layer_id)):
+            app.update_kernel(ch.id)
 
 def on_param_draw_target_selected(app, event=None):
     target = app.param_draw_target.get()

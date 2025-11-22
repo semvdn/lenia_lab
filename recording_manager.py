@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from tkinter import filedialog, simpledialog, messagebox
 from PIL import Image
-from config import GIFS_FOLDER
+from config import GIFS_FOLDER, GRID_DIM
 from file_handler import _save_preset_logic
 from organism_tracker import masses_for_label
 from canvas_manager import _get_view_array_by_name
@@ -80,13 +80,14 @@ def log_stats_and_gifs(app):
 
     bbox = org_data.get('bbox')
     if not bbox:
-        crop_box = (0, 0, app.GRID_DIM[1], app.GRID_DIM[0])
+        crop_box = (0, 0, GRID_DIM[1], GRID_DIM[0])
     else:
         min_r, min_c, max_r, max_c = bbox
         pad = 30
-        crop_box = (max(0, min_c - pad), max(0, min_r - pad), min(app.GRID_DIM[1], max_c + pad), min(app.GRID_DIM[0], max_r + pad))
+        crop_box = (max(0, min_c - pad), max(0, min_r - pad), min(GRID_DIM[1], max_c + pad), min(GRID_DIM[0], max_r + pad))
     
     for view_mode, writer in app.stats_gif_writers.items():
-        arr = _get_view_array_by_name(app, f"Ch {app.draw_channel_index + 1}: {view_mode}")
+        ch_idx = app.draw_channel_index if app.draw_channel_index >= 0 else 0
+        arr = _get_view_array_by_name(app, f"Ch {ch_idx + 1}: {view_mode}")
         if arr is not None:
             writer.append_data(Image.fromarray(arr).crop(crop_box))
