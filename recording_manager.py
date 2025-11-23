@@ -31,7 +31,7 @@ def record_gif(app):
         fp = filedialog.asksaveasfilename(defaultextension=".gif", initialdir=GIFS_FOLDER, filetypes=[("GIF", "*.gif")])
         if fp:
             frames = [_resize_frame(f) for f in app.gif_frames]
-            imageio.mimsave(fp, frames, fps=30)
+            imageio.mimsave(fp, frames, fps=30, loop=0)
         app.gif_frames = []
 
 def record_organism_stats(app):
@@ -61,7 +61,7 @@ def record_organism_stats(app):
         app.stats_log = [header]
         
         view_modes = ["Final Board", "Potential Field", "Growth Field", "Flow Field"]
-        app.stats_gif_writers = {v: imageio.get_writer(os.path.join(app.rec_dir, f"{v.lower().replace(' ', '_')}.gif"), mode='I') for v in view_modes}
+        app.stats_gif_writers = {v: imageio.get_writer(os.path.join(app.rec_dir, f"{v.lower().replace(' ', '_')}.gif"), mode='I', loop=0) for v in view_modes}
     else:
         for writer in app.stats_gif_writers.values():
             writer.close()
