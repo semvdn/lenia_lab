@@ -6,10 +6,23 @@ import pandas as pd
 import numpy as np
 from tkinter import filedialog, simpledialog, messagebox
 from PIL import Image
-from config import GIFS_FOLDER, GRID_DIM
+from config import GIFS_FOLDER, GRID_DIM, RECORDING_RESOLUTION
 from file_handler import _save_preset_logic
 from organism_tracker import masses_for_label
 from canvas_manager import _get_view_array_by_name
+
+def _target_size():
+    if not RECORDING_RESOLUTION:
+        return None
+    if isinstance(RECORDING_RESOLUTION, (list, tuple)) and len(RECORDING_RESOLUTION) == 2:
+        return (int(RECORDING_RESOLUTION[0]), int(RECORDING_RESOLUTION[1]))
+    return (int(RECORDING_RESOLUTION), int(RECORDING_RESOLUTION))
+
+def _resize_frame(arr):
+    size = _target_size()
+    if not size:
+        return arr
+    return np.array(Image.fromarray(arr).resize(size, Image.NEAREST))
 
 def record_gif(app):
     app.is_recording = not app.is_recording
@@ -17,7 +30,8 @@ def record_gif(app):
     if not app.is_recording and app.gif_frames:
         fp = filedialog.asksaveasfilename(defaultextension=".gif", initialdir=GIFS_FOLDER, filetypes=[("GIF", "*.gif")])
         if fp:
-            imageio.mimsave(fp, app.gif_frames, fps=30)
+            frames = [_resize_frame(f) for f in app.gif_frames]
+            imageio.mimsave(fp, frames, fps=30)
         app.gif_frames = []
 
 def record_organism_stats(app):
@@ -90,4 +104,5 @@ def log_stats_and_gifs(app):
         ch_idx = app.draw_channel_index if app.draw_channel_index >= 0 else 0
         arr = _get_view_array_by_name(app, f"Ch {ch_idx + 1}: {view_mode}")
         if arr is not None:
-            writer.append_data(Image.fromarray(arr).crop(crop_box))
+            frame = Image.fromarray(arr).crop(crop_box)
+            writer.append_data(_resize_frame(np.array(frame)))

@@ -6,6 +6,8 @@ UI_PANEL_WIDTH = 420
 GRID_SIZE = 800
 GRID_DIM = (200, 200)
 KERNEL_SIZE = 31
+# Output resolution for GIF recordings. Set to None to keep native size or provide (width, height).
+RECORDING_RESOLUTION = (800, 800)
 
 SETTINGS_FOLDER = "saved_settings"
 GIFS_FOLDER = "gifs"
