@@ -16,10 +16,12 @@ ENTRY_TYPE_LABELS = {
 ENTRY_SORT_ORDER = {'preset': 0, 'saved_organism': 1, 'saved_settings': 2}
 
 def _display_name(entry_type, name):
+    """Formats a display label for listbox entries based on type."""
     label = ENTRY_TYPE_LABELS.get(entry_type, "Preset")
     return f"[{label}] {name}"
 
 def _load_json_files(folder, entry_type, skip_dirs=True):
+    """Loads JSON files from a folder and returns a mapping of display names to entry data."""
     entries = {}
     if not os.path.isdir(folder):
         return entries
@@ -40,10 +42,12 @@ def _load_json_files(folder, entry_type, skip_dirs=True):
     return entries
 
 def _refresh_presets(app):
+    """Reloads preset metadata from disk and repopulates the listbox."""
     app.organism_presets = load_presets(app)
     update_preset_listbox(app)
 
 def _apply_settings_data(app, settings):
+    """Replaces the simulation state with values loaded from settings data."""
     new_state = SimulationState()
     new_state.interaction_matrix = settings.get('interaction_matrix', [[1.0]])
     new_state.channels = [Channel(**d) for d in settings.get('channels', [])]
@@ -55,12 +59,14 @@ def _apply_settings_data(app, settings):
     app._build_ui()
 
 def _load_settings_from_path(app, fp):
+    """Loads a settings JSON file from disk and applies it to the app."""
     with open(fp, 'r') as f:
         settings = json.load(f)
     _apply_settings_data(app, settings)
     return settings
 
 def save_settings(app):
+    """Prompts the user for a settings name and writes the current state to disk."""
     name = simpledialog.askstring("Save Settings", "Enter settings name:", parent=app.root)
     if not name or not name.strip():
         return
@@ -71,12 +77,14 @@ def save_settings(app):
     _refresh_presets(app)
 
 def load_settings(app):
+    """Opens a file picker and applies a chosen settings file."""
     fp = filedialog.askopenfilename(initialdir=SETTINGS_FOLDER, filetypes=[("JSON", "*.json")])
     if not fp:
         return
     _load_settings_from_path(app, fp)
 
 def load_presets(app=None):
+    """Aggregates built-in, saved organism, and saved settings entries into one dict."""
     presets = {}
     presets.update(_load_json_files(PRESETS_FOLDER, 'preset'))
     presets.update(_load_json_files(SAVED_ORGANISMS_FOLDER, 'saved_organism'))
@@ -84,6 +92,7 @@ def load_presets(app=None):
     return presets
 
 def update_preset_listbox(app):
+    """Refreshes the preset listbox contents using the current preset metadata."""
     app.preset_listbox.delete(0, 'end')
     sorted_items = sorted(app.organism_presets.items(), key=lambda item: (ENTRY_SORT_ORDER.get(item[1]['type'], 99), item[1]['name'].lower()))
     for display, _ in sorted_items:
@@ -91,6 +100,7 @@ def update_preset_listbox(app):
     update_preset_preview(app)
 
 def save_preset(app):
+    """Prompts for a name and saves the currently selected tracked organism."""
     if not app.selected_organism_id or app.selected_organism_id not in app.persistent_tracked_organisms:
         messagebox.showwarning("Save Error", "No organism selected to save.")
         return
@@ -99,6 +109,7 @@ def save_preset(app):
         _save_preset_logic(app, name)
 
 def _save_preset_logic(app, name):
+    """Persists the selected organism tensor and metadata under the provided name."""
     if not app.selected_organism_id or app.selected_organism_id not in app.persistent_tracked_organisms:
         return
     org_data = app.persistent_tracked_organisms[app.selected_organism_id]
@@ -131,6 +142,7 @@ def _save_preset_logic(app, name):
     _refresh_presets(app)
 
 def load_preset(app):
+    """Loads the selected preset or settings entry into the simulation and UI."""
     sel = app.preset_listbox.curselection()
     if not sel:
         return
@@ -174,6 +186,7 @@ def load_preset(app):
     app.update_canvas()
 
 def delete_preset(app):
+    """Deletes a user-created preset after confirmation, preserving built-ins."""
     sel = app.preset_listbox.curselection()
     if not sel:
         return
@@ -189,6 +202,7 @@ def delete_preset(app):
         _refresh_presets(app)
 
 def rename_preset(app):
+    """Renames a user-created preset, ensuring conflicts are avoided."""
     sel = app.preset_listbox.curselection()
     if not sel:
         return
@@ -211,6 +225,7 @@ def rename_preset(app):
     _refresh_presets(app)
 
 def update_preset_preview(app, event=None):
+    """Updates the preview panel to reflect the currently selected preset entry."""
     sel = app.preset_listbox.curselection()
     if not sel:
         app.preset_preview_label.config(image='', text='')

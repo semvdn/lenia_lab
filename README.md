@@ -58,6 +58,9 @@ The preset list shows everything together with prefixes:
 - **Record Organism Stats** logs per-frame metrics and writes cropped GIFs for multiple view modes into a timestamped folder under `gifs/`.
 - Recording resolution is set via `RECORDING_RESOLUTION` in `config.py` (set to `None` to keep native size).
 
+## AI assistance
+- Some scripting and refactors were produced with help from Google's Gemini 2.5 Pro.
+
 ## Notes
 - The first run creates needed folders automatically.
 - If PyTorch cannot find CUDA, it falls back to CPU automatically.

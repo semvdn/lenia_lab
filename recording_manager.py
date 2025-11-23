@@ -12,6 +12,7 @@ from organism_tracker import masses_for_label
 from canvas_manager import _get_view_array_by_name
 
 def _target_size():
+    """Returns the configured output resolution for recordings, or None to use native size."""
     if not RECORDING_RESOLUTION:
         return None
     if isinstance(RECORDING_RESOLUTION, (list, tuple)) and len(RECORDING_RESOLUTION) == 2:
@@ -19,12 +20,14 @@ def _target_size():
     return (int(RECORDING_RESOLUTION), int(RECORDING_RESOLUTION))
 
 def _resize_frame(arr):
+    """Resizes a frame to the target recording dimensions if one is configured."""
     size = _target_size()
     if not size:
         return arr
     return np.array(Image.fromarray(arr).resize(size, Image.NEAREST))
 
 def record_gif(app):
+    """Toggles full-board GIF recording and saves the captured frames when stopping."""
     app.is_recording = not app.is_recording
     app.record_button.config(text="Stop & Save GIF" if app.is_recording else "Record Full GIF")
     if not app.is_recording and app.gif_frames:
@@ -35,6 +38,7 @@ def record_gif(app):
         app.gif_frames = []
 
 def record_organism_stats(app):
+    """Starts/stops organism stat logging and initializes session files when enabled."""
     if not app.selected_organism_id and not app.is_stats_recording:
         messagebox.showwarning("Recording Error", "An organism must be selected to begin recording.")
         return
@@ -70,6 +74,7 @@ def record_organism_stats(app):
         app.stats_log = []
 
 def log_stats_and_gifs(app):
+    """Logs per-frame organism metrics and appends cropped view frames to GIF writers."""
     if not app.selected_organism_id or app.selected_organism_id not in app.persistent_tracked_organisms:
         record_organism_stats(app)
         return

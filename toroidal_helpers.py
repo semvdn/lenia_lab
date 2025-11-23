@@ -8,14 +8,17 @@ from scipy.ndimage import distance_transform_edt
 
 class _DSU:
     def __init__(self, n):
+        """Initializes a disjoint set union structure sized for n labels."""
         self.parent = np.arange(n + 1, dtype=np.int32)
         self.rank = np.zeros(n + 1, dtype=np.int8)
     def find(self, x):
+        """Finds the representative element for x with path compression."""
         while self.parent[x] != x:
             self.parent[x] = self.parent[self.parent[x]]
             x = self.parent[x]
         return x
     def union(self, a, b):
+        """Unites the sets containing a and b using union by rank."""
         ra, rb = self.find(a), self.find(b)
         if ra == rb: return
         if self.rank[ra] < self.rank[rb]:
@@ -27,6 +30,7 @@ class _DSU:
             self.rank[ra] += 1
 
 def _remap_sequential(labels):
+    """Renumbers non-zero labels sequentially starting at 1."""
     if labels.size == 0: return labels
     uniq = np.unique(labels); uniq = uniq[uniq != 0]
     if uniq.size == 0: return labels
@@ -37,12 +41,14 @@ def _remap_sequential(labels):
     return out
 
 def toroidal_delta(old, new, size):
+    """Computes wrapped difference between two coordinates on a toroidal axis."""
     d = new - old
     if d > size / 2: d -= size
     elif d < -size / 2: d += size
     return d
 
 def toroidal_distance(a, b, H, W):
+    """Returns Euclidean distance between two points on a toroidal grid."""
     dr = toroidal_delta(a[0], b[0], H)
     dc = toroidal_delta(a[1], b[1], W)
     return np.hypot(dr, dc)
@@ -73,6 +79,7 @@ def fast_toroidal_weighted_centroid(rows, cols, weights, H, W):
     return np.array([r_c % H, c_c % W], dtype=np.float64)
 
 def _union_wrap_seams(labels, min_size=1):
+    """Merges touching labels across wrapped edges and prunes small components."""
     H, W = labels.shape
     n = int(labels.max())
     if n == 0:
@@ -121,6 +128,7 @@ def _union_wrap_seams(labels, min_size=1):
     return out.astype(np.int32)
 
 def toroidal_segment(binary_map, mode="label", peak_distance=7, min_size=1):
+    """Labels connected components on a toroidal grid with optional watershed mode."""
     H, W = binary_map.shape
     if not np.any(binary_map):
         return np.zeros((H, W), dtype=np.int32)

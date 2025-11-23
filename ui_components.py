@@ -4,10 +4,12 @@ from simulation import kernel_functions, growth_functions
 from config import UI_PANEL_WIDTH, KERNEL_SIZE
 
 def _destroy_children(widget):
+    """Destroys all child widgets within the given parent widget."""
     for child in widget.winfo_children():
         child.destroy()
 
 def _build_ui(app):
+    """Constructs the main tabbed UI and initializes dependent controls."""
     _destroy_children(app.ui_frame)
     notebook = ttk.Notebook(app.ui_frame)
     notebook.pack(fill=tk.BOTH, expand=True)
@@ -20,6 +22,7 @@ def _build_ui(app):
     app._update_local_param_draw_ui()
 
 def _build_channels_tab(app, parent):
+    """Builds the Channels & Kernels tab, including controls and scrollable channel list."""
     top_frame = ttk.Frame(parent)
     interactions_container = ttk.Frame(parent)
     channel_container = ttk.Frame(parent)
@@ -84,6 +87,7 @@ def _build_channels_tab(app, parent):
     ttk.Button(file_controls, text="Load Settings", command=app.load_settings).pack(side=tk.LEFT, expand=True, fill=tk.X)
 
 def _build_analysis_tab(app, parent):
+    """Builds the Analysis & Tracking tab with tracking controls and preset management."""
     tracking_frame = ttk.LabelFrame(parent, text="Organism Tracking")
     tracking_frame.pack(fill=tk.X, pady=5)
     top_track_frame = ttk.Frame(tracking_frame)
@@ -174,6 +178,7 @@ def _build_analysis_tab(app, parent):
     app._update_preset_listbox()
 
 def _rebuild_interactions_ui(app):
+    """Recreates the interaction matrix controls based on current channels."""
     _destroy_children(app.interactions_frame)
     num_ch = len(app.sim_state.channels)
     if num_ch == 0: return
@@ -189,6 +194,7 @@ def _rebuild_interactions_ui(app):
                 label.config(state='disabled'); scale.config(state='disabled')
 
 def _rebuild_channels_ui(app):
+    """Rebuilds all channel panels within the scrollable channel list."""
     _destroy_children(app.scrollable_frame)
     app.kernel_previews = {}
     for i, ch in enumerate(app.sim_state.channels):
@@ -197,6 +203,7 @@ def _rebuild_channels_ui(app):
         _build_single_channel_ui(app, ch_frame, ch)
 
 def _build_single_channel_ui(app, parent_frame, ch):
+    """Constructs UI controls for a single channel, including sliders and kernel layers."""
     widgets = {}
     top_row = ttk.Frame(parent_frame); top_row.pack(fill=tk.X, pady=2)
     ch_active_var = tk.BooleanVar(value=ch.is_active)
@@ -237,6 +244,7 @@ def _build_single_channel_ui(app, parent_frame, ch):
     if not ch.is_active: app._set_widget_state(parent_frame, 'disabled', exceptions=[widgets['ch_check']])
 
 def _build_flow_responsive_ui(app, parent, ch):
+    """Creates the flow-responsive parameter controls for a channel."""
     frame = ttk.LabelFrame(parent, text="Flow Response Settings")
     _create_slider(app, frame, "Sensitivity", ch.id, 'flow_sensitivity', 1.0, 50.0)
     _create_range_slider(app, frame, "Mu Range", ch.id, 'mu_range', 0.0, 1.0)
@@ -246,6 +254,7 @@ def _build_flow_responsive_ui(app, parent, ch):
     return frame
 
 def _create_range_slider(app, parent, label_text, ch_id, attr, from_, to_):
+    """Creates paired sliders to select a min/max range and updates the channel attribute."""
     frame = ttk.Frame(parent); frame.pack(fill=tk.X, padx=5, pady=2)
     ttk.Label(frame, text=label_text, width=12).pack(side=tk.LEFT)
     ch = app._get_channel_by_id(ch_id)
@@ -254,6 +263,7 @@ def _create_range_slider(app, parent, label_text, ch_id, attr, from_, to_):
     max_var = tk.DoubleVar(value=current_range[1])
     label = ttk.Label(frame, text=f"[{current_range[0]:.2f}, {current_range[1]:.2f}]", width=12)
     def _update(v=None):
+        """Ensures min/max sliders stay ordered and writes the range back to state."""
         min_val = min_var.get(); max_val = max_var.get()
         if min_val > max_val: min_var.set(max_val); min_val = max_val
         label.config(text=f"[{min_val:.2f}, {max_val:.2f}]")
@@ -266,6 +276,7 @@ def _create_range_slider(app, parent, label_text, ch_id, attr, from_, to_):
     return frame
         
 def _build_kernel_layer_ui(app, parent, ch_id, layer, k_idx, total_layers):
+    """Builds controls for a single kernel layer, including order, type, and params."""
     layer_frame = ttk.Frame(parent, borderwidth=1, relief="solid"); layer_frame.pack(fill=tk.X, pady=3, padx=2)
     row1 = ttk.Frame(layer_frame); row1.pack(fill=tk.X)
     layer_active_var = tk.BooleanVar(value=layer.get('is_active', True))
@@ -288,6 +299,7 @@ def _build_kernel_layer_ui(app, parent, ch_id, layer, k_idx, total_layers):
         app._set_widget_state(layer_frame, 'disabled', exceptions=[layer_check])
 
 def _create_slider(app, parent, label_text, item_id, attr, from_, to, is_layer=False, is_int=False):
+    """Creates a labeled slider bound to a channel or layer attribute."""
     frame = ttk.Frame(parent); frame.pack(fill=tk.X, padx=5, pady=2)
     ttk.Label(frame, text=label_text, width=12).pack(side=tk.LEFT)
     if is_layer: item=app._get_layer_by_id(item_id); val=item.get(attr)

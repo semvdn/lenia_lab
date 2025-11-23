@@ -7,6 +7,7 @@ from simulation import generate_composite_kernel, local_param_maps, LOCAL_PARAM_
 from config import GRID_DIM, device
 
 def update_canvas(app):
+    """Renders the current simulation view onto the Tk canvas, handling zoom/split options."""
     if len(app.sim_state.channels) == 0:
         app.canvas.delete("all")
         return
@@ -71,6 +72,7 @@ def update_canvas(app):
         app.canvas.itemconfig(app.canvas_image_id, image=app.photo)
 
 def _get_view_array_by_name(app, view_name):
+    """Returns an RGB numpy array for the requested view selection."""
     channels = app.sim_state.channels
     if view_name == "Final Board":
         return _get_multichannel_array(app.game_board, channels)
@@ -98,6 +100,7 @@ def _get_view_array_by_name(app, view_name):
     return _get_multichannel_array(app.game_board, channels)
 
 def _get_multichannel_array(board_tensor, channels):
+    """Combines active channel slices into an RGB array using their configured colors."""
     active_channels = [ch for ch in channels if ch.is_active]
     if not active_channels: return np.zeros((*GRID_DIM, 3), dtype=np.uint8)
     active_indices = [i for i, ch in enumerate(channels) if ch.is_active]
@@ -111,11 +114,13 @@ def _get_multichannel_array(board_tensor, channels):
     return (img_tensor * 255).byte().cpu().numpy()
 
 def _get_single_channel_array(tensor, colormap='magma'):
+    """Normalizes a tensor slice and maps it through a matplotlib colormap."""
     t_min, t_max = tensor.min(), tensor.max()
     if t_max > t_min: tensor = (tensor - t_min) / (t_max - t_min)
     return (plt.get_cmap(colormap)(tensor.detach().cpu().numpy())[:, :, :3] * 255).astype(np.uint8)
 
 def _get_flow_field_array(flow_x, flow_y):
+    """Encodes flow magnitude and direction into an HSV-based RGB image."""
     mag = torch.sqrt(flow_x**2 + flow_y**2)
     ang = torch.atan2(flow_y, flow_x)
     h = (ang + np.pi) / (2 * np.pi)
@@ -127,6 +132,7 @@ def _get_flow_field_array(flow_x, flow_y):
     return (rgb[:, :, :3] * 255).astype(np.uint8)
 
 def update_kernel_preview(app, id):
+    """Refreshes the cached kernel preview widget for the specified channel id."""
     if not (ch := app._get_channel_by_id(id)) or id not in app.kernel_previews: return
     k, _, _ = app.kernel_cache[id]
     max_abs = torch.max(torch.abs(k)) or 1.0
@@ -138,6 +144,7 @@ def update_kernel_preview(app, id):
     app.kernel_previews[id].image = photo
 
 def draw_on_canvas(app, event, right_click=False):
+    """Handles user drawing on the canvas to add/remove mass or edit local parameter maps."""
     num_channels = len(app.sim_state.channels)
     if num_channels == 0:
         return
@@ -178,6 +185,7 @@ def draw_on_canvas(app, event, right_click=False):
     update_canvas(app)
 
 def _draw_tracking_overlay(app, pil_image, scale_x, scale_y, offset_x=0, offset_y=0):
+    """Draws tracked organism outlines, centers, and velocity indicators on the PIL image."""
     draw = ImageDraw.Draw(pil_image)
     margin = float(app.outline_margin.get())
 

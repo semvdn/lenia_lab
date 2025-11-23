@@ -27,6 +27,7 @@ class Channel:
         is_active (bool): Whether the channel is currently active in the simulation.
     """
     def __init__(self, **kwargs):
+        """Sets default channel parameters and applies any provided overrides."""
         self.id = str(uuid.uuid4())
         self.color_hex = '#FF00FF'
         self.mu = 0.14
@@ -57,6 +58,7 @@ class SimulationState:
         active_channel_idx_for_view (int): The index of the channel to be displayed in certain view modes.
     """
     def __init__(self):
+        """Initializes the simulation state with a default single channel and self-interaction."""
         self.channels = [Channel(color_hex='#00FFFF')]
         self.interaction_matrix = [[1.0]]
         self.view_mode = "Final Board"

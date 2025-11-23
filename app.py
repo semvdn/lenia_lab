@@ -17,8 +17,9 @@ import event_handlers
 
 class LeniaApp:
     def __init__(self, root):
+        """Initializes application state, UI elements, and kicks off the update loop."""
         self.root = root
-        self.root.title("Lenia Lab Scientific")
+        self.root.title("Lenia Lab")
         self._ensure_dir(SETTINGS_FOLDER)
         self._ensure_dir(GIFS_FOLDER)
         self._ensure_dir(PRESETS_FOLDER)
@@ -108,6 +109,7 @@ class LeniaApp:
 
     # --- Main Loop ---
     def update_loop(self):
+        """Advances the simulation, updates tracking visuals, and schedules the next frame."""
         if not self.paused and len(self.sim_state.channels) > 0:
             self.sim_fields = update_multichannel_board(self.game_board, self.sim_state, self.grid_y, self.grid_x, self.kernel_cache)
             self.game_board = self.sim_fields['final_board']
@@ -132,6 +134,7 @@ class LeniaApp:
 
     # --- Kernel Caching ---
     def update_kernel(self, channel_id):
+        """Regenerates a kernel and its gradients for the given channel id."""
         ch = self._get_channel_by_id(channel_id)
         if ch:
             kernel = generate_composite_kernel(ch.kernel_layers)
@@ -139,73 +142,201 @@ class LeniaApp:
             self.kernel_cache[ch.id] = (kernel, grad_y, grad_x)
 
     def update_all_kernels(self):
+        """Rebuilds the kernel cache for every channel in the simulation."""
         self.kernel_cache.clear()
         for ch in self.sim_state.channels:
             self.update_kernel(ch.id)
             
     # --- Delegate Methods ---
-    def _build_ui(self): ui_components._build_ui(self)
-    def _rebuild_channels_ui(self): ui_components._rebuild_channels_ui(self)
-    def _rebuild_interactions_ui(self): ui_components._rebuild_interactions_ui(self)
-    def update_canvas(self): canvas_manager.update_canvas(self)
-    def _update_kernel_preview(self, id): 
+    def _build_ui(self):
+        """Builds or rebuilds the UI panels using the ui_components module."""
+        ui_components._build_ui(self)
+
+    def _rebuild_channels_ui(self):
+        """Recreates channel-specific UI sections."""
+        ui_components._rebuild_channels_ui(self)
+
+    def _rebuild_interactions_ui(self):
+        """Refreshes the interaction matrix UI grid."""
+        ui_components._rebuild_interactions_ui(self)
+
+    def update_canvas(self):
+        """Draws the latest simulation state to the canvas."""
+        canvas_manager.update_canvas(self)
+
+    def _update_kernel_preview(self, id):
+        """Refreshes the kernel preview for a channel after edits."""
         self.update_kernel(id)
         canvas_manager.update_kernel_preview(self, id)
-    def draw_on_canvas(self, event, right_click=False): canvas_manager.draw_on_canvas(self, event, right_click)
-    def _on_canvas_select(self, event): organism_tracker.on_canvas_select(self, event)
-    def _margin_contours(self, data, margin): return organism_tracker._margin_contours(self, data, margin)
-    def save_settings(self): file_handler.save_settings(self)
-    def load_settings(self): 
+
+    def draw_on_canvas(self, event, right_click=False):
+        """Handles drawing interactions on the simulation canvas."""
+        canvas_manager.draw_on_canvas(self, event, right_click)
+
+    def _on_canvas_select(self, event):
+        """Selects an organism when clicking the canvas while tracking is enabled."""
+        organism_tracker.on_canvas_select(self, event)
+
+    def _margin_contours(self, data, margin):
+        """Returns cached contours expanded by a margin for overlay drawing."""
+        return organism_tracker._margin_contours(self, data, margin)
+
+    def save_settings(self):
+        """Saves the full simulation configuration to disk."""
+        file_handler.save_settings(self)
+
+    def load_settings(self):
+        """Loads simulation settings from disk and refreshes kernels."""
         file_handler.load_settings(self)
         self.update_all_kernels()
-    def save_preset(self): file_handler.save_preset(self)
-    def load_preset(self): 
+
+    def save_preset(self):
+        """Persists the currently selected organism as a preset."""
+        file_handler.save_preset(self)
+
+    def load_preset(self):
+        """Loads a preset or saved settings and rebuilds kernels."""
         file_handler.load_preset(self)
         self.update_all_kernels()
-    def rename_preset(self): file_handler.rename_preset(self)
-    def delete_preset(self): file_handler.delete_preset(self)
-    def _update_preset_listbox(self): file_handler.update_preset_listbox(self)
-    def _update_preset_preview(self, event=None): file_handler.update_preset_preview(self, event)
-    def record_gif(self): recording_manager.record_gif(self)
-    def record_organism_stats(self): recording_manager.record_organism_stats(self)
-    def _update_slider_val(self, l, i, a, v, isl, isi): event_handlers.update_slider_val(self, l, i, a, v, isl, isi)
-    def _update_interaction(self, i, j, v): event_handlers.update_interaction(self, i, j, v)
-    def _update_brush_size(self, v): event_handlers.update_brush_size(self, v)
-    def _on_draw_channel_selected(self, e): event_handlers.on_draw_channel_selected(self, e)
-    def add_channel(self): 
+
+    def rename_preset(self):
+        """Renames a user-created preset entry."""
+        file_handler.rename_preset(self)
+
+    def delete_preset(self):
+        """Deletes a user-created preset entry."""
+        file_handler.delete_preset(self)
+
+    def _update_preset_listbox(self):
+        """Refreshes the preset list UI."""
+        file_handler.update_preset_listbox(self)
+
+    def _update_preset_preview(self, event=None):
+        """Updates the preview panel when the preset selection changes."""
+        file_handler.update_preset_preview(self, event)
+
+    def record_gif(self):
+        """Toggles full-board GIF recording."""
+        recording_manager.record_gif(self)
+
+    def record_organism_stats(self):
+        """Starts or stops organism stat logging and GIF capture."""
+        recording_manager.record_organism_stats(self)
+
+    def _update_slider_val(self, l, i, a, v, isl, isi):
+        """Forwards slider change events to the shared handler."""
+        event_handlers.update_slider_val(self, l, i, a, v, isl, isi)
+
+    def _update_interaction(self, i, j, v):
+        """Updates an entry in the interaction matrix via handler."""
+        event_handlers.update_interaction(self, i, j, v)
+
+    def _update_brush_size(self, v):
+        """Adjusts the drawing brush size."""
+        event_handlers.update_brush_size(self, v)
+
+    def _on_draw_channel_selected(self, e):
+        """Handles selection changes for the drawing channel dropdown."""
+        event_handlers.on_draw_channel_selected(self, e)
+
+    def add_channel(self):
+        """Adds a new channel and rebuilds kernel cache."""
         event_handlers.add_channel(self)
         self.update_all_kernels()
-    def delete_channel(self, id): event_handlers.delete_channel(self, id)
-    def duplicate_channel(self, id): 
+
+    def delete_channel(self, id):
+        """Deletes a channel and updates dependent state."""
+        event_handlers.delete_channel(self, id)
+
+    def duplicate_channel(self, id):
+        """Duplicates a channel and refreshes kernels."""
         event_handlers.duplicate_channel(self, id)
         self.update_all_kernels()
-    def add_kernel_layer(self, id): event_handlers.add_kernel_layer(self, id)
-    def clear_kernel_layers(self, id): event_handlers.clear_kernel_layers(self, id)
-    def remove_layer(self, id): event_handlers.remove_layer(self, id)
-    def move_layer(self, id, d): event_handlers.move_layer(self, id, d)
-    def reset_seed(self): event_handlers.reset_seed(self)
-    def randomize_board(self): event_handlers.randomize_board(self)
-    def clear_board(self): event_handlers.clear_board(self)
-    def toggle_pause(self): event_handlers.toggle_pause(self)
-    def toggle_zoom_view(self): event_handlers.toggle_zoom_view(self)
-    def _on_view_mode_selected(self, e=None): event_handlers.on_view_mode_selected(self, e)
-    def toggle_split_screen(self, initial=False): event_handlers.toggle_split_screen(self, initial=initial)
-    def _toggle_local_params(self, id, en, w): event_handlers.toggle_local_params(self, id, en, w)
-    def _toggle_flow_responsive_params(self, id, en, w): event_handlers.toggle_flow_responsive_params(self, id, en, w)
-    def _toggle_channel_active(self, id, var): event_handlers.toggle_channel_active(self, id, var)
-    def _toggle_layer_active(self, id, var): event_handlers.toggle_layer_active(self, id, var)
-    def _on_param_draw_target_selected(self, e=None): event_handlers.on_param_draw_target_selected(self, e)
-    def _update_param_draw_slider(self, e=None): event_handlers.update_param_draw_slider(self, e)
+
+    def add_kernel_layer(self, id):
+        """Adds a kernel layer to the given channel."""
+        event_handlers.add_kernel_layer(self, id)
+
+    def clear_kernel_layers(self, id):
+        """Resets kernel layers on a channel to a single default layer."""
+        event_handlers.clear_kernel_layers(self, id)
+
+    def remove_layer(self, id):
+        """Removes a specific kernel layer from its channel."""
+        event_handlers.remove_layer(self, id)
+
+    def move_layer(self, id, d):
+        """Moves a kernel layer up or down within the stack."""
+        event_handlers.move_layer(self, id, d)
+
+    def reset_seed(self):
+        """Resets the board to the initial seeded circle pattern."""
+        event_handlers.reset_seed(self)
+
+    def randomize_board(self):
+        """Randomizes the entire board contents."""
+        event_handlers.randomize_board(self)
+
+    def clear_board(self):
+        """Clears the board to zeros."""
+        event_handlers.clear_board(self)
+
+    def toggle_pause(self):
+        """Pauses or resumes simulation updates."""
+        event_handlers.toggle_pause(self)
+
+    def toggle_zoom_view(self):
+        """Switches between zoomed and full-board views."""
+        event_handlers.toggle_zoom_view(self)
+
+    def _on_view_mode_selected(self, e=None):
+        """Updates view mode selection for rendering."""
+        event_handlers.on_view_mode_selected(self, e)
+
+    def toggle_split_screen(self, initial=False):
+        """Enables or disables split-screen visualization."""
+        event_handlers.toggle_split_screen(self, initial=initial)
+
+    def _toggle_local_params(self, id, en, w):
+        """Turns local parameter maps on or off for a channel."""
+        event_handlers.toggle_local_params(self, id, en, w)
+
+    def _toggle_flow_responsive_params(self, id, en, w):
+        """Toggles flow-responsiveness for a channel's local params."""
+        event_handlers.toggle_flow_responsive_params(self, id, en, w)
+
+    def _toggle_channel_active(self, id, var):
+        """Marks a channel active or inactive and refreshes UI."""
+        event_handlers.toggle_channel_active(self, id, var)
+
+    def _toggle_layer_active(self, id, var):
+        """Marks a kernel layer active or inactive."""
+        event_handlers.toggle_layer_active(self, id, var)
+
+    def _on_param_draw_target_selected(self, e=None):
+        """Updates parameter drawing controls when target changes."""
+        event_handlers.on_param_draw_target_selected(self, e)
+
+    def _update_param_draw_slider(self, e=None):
+        """Refreshes parameter draw slider label on movement."""
+        event_handlers.update_param_draw_slider(self, e)
     
     # --- ADDED DELEGATE METHODS ---
-    def _update_channel_attr(self, id, attr, val): event_handlers.update_channel_attr(self, id, attr, val)
-    def _update_layer_attr(self, id, attr, val): event_handlers.update_layer_attr(self, id, attr, val)
+    def _update_channel_attr(self, id, attr, val):
+        """Updates a channel attribute from UI inputs."""
+        event_handlers.update_channel_attr(self, id, attr, val)
+
+    def _update_layer_attr(self, id, attr, val):
+        """Updates a kernel layer attribute from UI inputs."""
+        event_handlers.update_layer_attr(self, id, attr, val)
 
     # --- Helper & State Methods ---
     def _ensure_dir(self, dir_path):
+        """Creates a directory if it does not already exist."""
         if not os.path.exists(dir_path): os.makedirs(dir_path)
 
     def _get_selem(self, r):
+        """Returns a cached circular structuring element of radius r for morphology ops."""
         r = int(max(0, r))
         if r == 0: return np.ones((1, 1), dtype=bool)
         if r in self._selem_cache: return self._selem_cache[r]
@@ -214,6 +345,7 @@ class LeniaApp:
         return self._selem_cache[r]
 
     def _initialize_board_circle_seed(self):
+        """Initializes the board with a centered circular seed in the first channel."""
         board = torch.zeros((len(self.sim_state.channels), *GRID_DIM), dtype=torch.float32, device=device)
         if len(self.sim_state.channels) > 0:
             cy, cx = GRID_DIM[0] // 2, GRID_DIM[1] // 2
@@ -222,20 +354,35 @@ class LeniaApp:
             board[0, mask] = 1.0
         return board
     
-    def _randomize_board(self): return torch.rand((len(self.sim_state.channels), *GRID_DIM), dtype=torch.float32, device=device)
-    def _clear_board(self): return torch.zeros((len(self.sim_state.channels), *GRID_DIM), dtype=torch.float32, device=device)
+    def _randomize_board(self):
+        """Generates a random board tensor matching the current channel count."""
+        return torch.rand((len(self.sim_state.channels), *GRID_DIM), dtype=torch.float32, device=device)
+
+    def _clear_board(self):
+        """Returns an empty board tensor for the current channel count."""
+        return torch.zeros((len(self.sim_state.channels), *GRID_DIM), dtype=torch.float32, device=device)
     
-    def _get_channel_by_id(self, id): return next((c for c in self.sim_state.channels if c.id == id), None)
-    def _get_layer_by_id(self, id): return next((l for c in self.sim_state.channels for l in c.kernel_layers if l['id'] == id), None)
-    def _get_channel_by_any_id(self, id): return self._get_channel_by_id(id) or next((c for c in self.sim_state.channels for l in c.kernel_layers if l['id'] == id), None)
+    def _get_channel_by_id(self, id):
+        """Finds a channel by its id."""
+        return next((c for c in self.sim_state.channels if c.id == id), None)
+
+    def _get_layer_by_id(self, id):
+        """Finds a kernel layer by its id across all channels."""
+        return next((l for c in self.sim_state.channels for l in c.kernel_layers if l['id'] == id), None)
+
+    def _get_channel_by_any_id(self, id):
+        """Resolves an id that may refer to either a channel or one of its layers."""
+        return self._get_channel_by_id(id) or next((c for c in self.sim_state.channels for l in c.kernel_layers if l['id'] == id), None)
 
     def _initialize_local_param_maps(self, channel):
+        """Initializes local parameter maps for a channel that has them enabled."""
         local_param_maps[channel.id] = {
             name: torch.full(GRID_DIM, getattr(channel, name), dtype=torch.float32, device=device)
             for name in LOCAL_PARAM_NAMES
         }
 
     def _initialize_all_local_param_maps(self):
+        """Prepares local parameter maps for all channels that require them."""
         local_param_maps.clear()
         for ch in self.sim_state.channels:
             if ch.has_local_params:
@@ -243,21 +390,25 @@ class LeniaApp:
 
     # --- UI State Update Methods ---
     def _set_widget_state(self, parent, state, exceptions=[]):
+        """Recursively sets widget state for a container, respecting exceptions."""
         for child in parent.winfo_children():
             if child in exceptions: continue
             if 'state' in child.configure(): child.configure(state=state)
             self._set_widget_state(child, state, exceptions)
             
     def _set_channel_ui_state(self, ch, widgets):
+        """Enables sliders for a channel (other state managed elsewhere)."""
         for slider_frame in widgets.get('sliders', {}).values():
             self._set_widget_state(slider_frame, 'normal')
 
     def _update_local_param_draw_ui(self):
+        """Hides parameter drawing controls when local parameters are disabled."""
         # Local parameter drawing is disabled; keep controls hidden.
         self.param_draw_frame.pack_forget()
         self.param_draw_target.set("Mass")
 
     def _update_draw_channel_selector(self):
+        """Keeps the draw channel dropdown in sync with current channel count."""
         num_ch = len(self.sim_state.channels)
         values = ["All"] + [str(i + 1) for i in range(num_ch)] if num_ch > 0 else []
         self.draw_channel_dd['values'] = values
@@ -270,6 +421,7 @@ class LeniaApp:
         self.draw_channel_var.set("All" if self.draw_channel_index == -1 else str(self.draw_channel_index + 1))
 
     def _update_vis_options(self):
+        """Populates visualization dropdowns based on available channels."""
         options = ["Final Board"]
         for i, ch in enumerate(self.sim_state.channels):
             options.extend([f"Ch {i+1}: Potential Field", f"Ch {i+1}: Growth Field", f"Ch {i+1}: Flow Field"])
